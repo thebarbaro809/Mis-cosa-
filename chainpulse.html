@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChainPulse v2 — Joel</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#02040a;--bg2:#050810;--card:#080d16;--card2:#0c1220;
+  --border:#0f1a2e;--border2:#162035;
+  --buy:#00ff9d;--sell:#ff2d6b;--wait:#ffb800;--info:#38bdf8;--purple:#a78bfa;
+  --muted:#2d4060;--text:#94afc8;--white:#e8f0fa;
+  --mono:'DM Mono',monospace;--display:'Syne',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(56,189,248,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.025) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 50% -20%,rgba(0,255,157,.035),transparent 60%);pointer-events:none;z-index:0}
+.wrap{max-width:440px;margin:0 auto;padding:20px 14px 80px;position:relative;z-index:1}
+
+/* HEADER */
+.hdr{padding:24px 0 18px;margin-bottom:18px;border-bottom:1px solid var(--border2)}
+.hdr-badge{display:inline-flex;align-items:center;gap:6px;font-size:9px;letter-spacing:3px;color:var(--info);text-transform:uppercase;margin-bottom:10px;opacity:.7}
+.hdr-dot{width:5px;height:5px;border-radius:50%;background:var(--buy);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+.hdr h1{font-family:var(--display);font-size:28px;font-weight:800;color:var(--white);letter-spacing:-.5px;line-height:1.1}
+.hdr h1 span{color:var(--buy)}
+.hdr-sub{font-size:10px;color:var(--muted);margin-top:6px;letter-spacing:1px}
+.apis{display:flex;gap:4px;margin-top:10px;flex-wrap:wrap}
+.api{font-size:8px;letter-spacing:1.5px;padding:2px 7px;border-radius:2px;text-transform:uppercase;border:1px solid}
+.api.a{color:var(--info);border-color:rgba(56,189,248,.2);background:rgba(56,189,248,.04)}
+.api.b{color:var(--buy);border-color:rgba(0,255,157,.2);background:rgba(0,255,157,.04)}
+.api.c{color:var(--wait);border-color:rgba(255,184,0,.2);background:rgba(255,184,0,.04)}
+.api.p{color:var(--purple);border-color:rgba(167,139,250,.2);background:rgba(167,139,250,.04)}
+
+/* STATUS BAR */
+.sbar{display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--card);border:1px solid var(--border2);border-radius:6px;margin-bottom:14px;font-size:11px;color:var(--muted)}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:all .3s}
+.sdot.ok{background:var(--buy);box-shadow:0 0 8px rgba(0,255,157,.4)}
+.sdot.loading{background:var(--wait);animation:pulse 1s infinite}
+.sdot.err{background:var(--sell)}
+
+/* SEARCH */
+.search{margin-bottom:14px}
+.slbl{font-size:9px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:7px}
+.srow{display:flex;gap:8px}
+.sinput{flex:1;background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:13px 14px;color:var(--white);font-family:var(--mono);font-size:18px;letter-spacing:4px;text-transform:uppercase;outline:none;transition:all .25s}
+.sinput:focus{border-color:var(--buy);box-shadow:0 0 0 1px rgba(0,255,157,.12)}
+.sinput::placeholder{color:var(--muted);font-size:12px;letter-spacing:1px}
+.sbtn{background:var(--buy);color:#000;border:none;border-radius:6px;padding:13px 18px;font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .2s;text-transform:uppercase;white-space:nowrap}
+.sbtn:hover{filter:brightness(1.12);transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,255,157,.2)}
+.sbtn:disabled{opacity:.25;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* LOADER */
+.loader{display:none;text-align:center;padding:48px 0}
+.loader.on{display:block}
+.spin{width:40px;height:40px;margin:0 auto 14px;position:relative}
+.spin::before,.spin::after{content:'';position:absolute;inset:0;border-radius:50%;border:1px solid transparent}
+.spin::before{border-top-color:var(--buy);animation:spin .8s linear infinite}
+.spin::after{border-bottom-color:rgba(0,255,157,.18);animation:spin 1.3s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ltxt{font-size:10px;letter-spacing:3px;color:var(--buy);animation:blink 1.5s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+
+.errbox{display:none;padding:14px;background:rgba(255,45,107,.05);border:1px solid rgba(255,45,107,.2);border-radius:8px;margin-bottom:14px;font-size:12px;color:var(--sell)}
+.errbox.on{display:block}
+
+/* RESULTS */
+.res{display:none;animation:fadeUp .4s ease}
+.res.on{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* HERO */
+.hero{background:var(--card);border:1px solid var(--border2);border-radius:10px;padding:18px;margin-bottom:12px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-30px;right:-30px;width:110px;height:110px;border-radius:50%;background:radial-gradient(circle,rgba(0,255,157,.05),transparent 70%)}
+.hero-row{display:flex;justify-content:space-between;align-items:flex-start}
+.hero-name{font-family:var(--display);font-size:20px;font-weight:800;color:var(--white);letter-spacing:1px}
+.hero-net{font-size:9px;letter-spacing:2px;color:var(--muted);margin-top:3px}
+.hero-price{font-family:var(--mono);font-size:22px;color:var(--info);text-align:right}
+.hero-chg{font-size:12px;text-align:right;margin-top:3px}
+.hero-chg.p{color:var(--buy)}.hero-chg.n{color:var(--sell)}
+.hero-stats{display:flex;gap:0;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}
+.hs{flex:1;text-align:center;padding:0 4px;border-right:1px solid var(--border)}
+.hs:last-child{border-right:none}
+.hs-l{font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:3px}
+.hs-v{font-size:12px;color:var(--white)}
+.hs-v.g{color:var(--buy)}.hs-v.r{color:var(--sell)}.hs-v.y{color:var(--wait)}
+
+/* DATA QUALITY WARNING */
+.dqw{background:rgba(255,184,0,.04);border:1px solid rgba(255,184,0,.15);border-radius:8px;padding:11px 13px;margin-bottom:12px;display:none}
+.dqw.on{display:block}
+.dqw-title{font-size:9px;letter-spacing:2px;color:var(--wait);text-transform:uppercase;margin-bottom:5px}
+.dqw-list{font-size:11px;color:var(--muted);line-height:1.7}
+
+/* SECTION */
+.sec{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.sec-hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
+.stag{font-family:var(--mono);font-size:8px;padding:2px 7px;border-radius:2px;letter-spacing:1px;flex-shrink:0}
+.stag.b{color:var(--buy);background:rgba(0,255,157,.08);border:1px solid rgba(0,255,157,.14)}
+.stag.i{color:var(--info);background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.14)}
+.stag.w{color:var(--wait);background:rgba(255,184,0,.08);border:1px solid rgba(255,184,0,.14)}
+.stag.s{color:var(--sell);background:rgba(255,45,107,.08);border:1px solid rgba(255,45,107,.14)}
+.stag.p{color:var(--purple);background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.14)}
+.sec-title{font-family:var(--display);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text);flex:1}
+.badge{font-size:9px;font-family:var(--mono);letter-spacing:1px;padding:2px 8px;border-radius:3px;text-transform:uppercase;flex-shrink:0}
+.badge.buy{background:rgba(0,255,157,.1);color:var(--buy);border:1px solid rgba(0,255,157,.2)}
+.badge.sell{background:rgba(255,45,107,.1);color:var(--sell);border:1px solid rgba(255,45,107,.2)}
+.badge.wait{background:rgba(255,184,0,.1);color:var(--wait);border:1px solid rgba(255,184,0,.2)}
+.badge.na{background:rgba(45,64,96,.12);color:var(--muted);border:1px solid rgba(45,64,96,.25)}
+.badge.info{background:rgba(56,189,248,.1);color:var(--info);border:1px solid rgba(56,189,248,.2)}
+.sec-body{padding:13px 14px}
+
+/* METRIC ROWS */
+.mr{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(15,26,46,.7)}
+.mr:last-child{border-bottom:none}
+.ml{font-size:10px;color:var(--muted);letter-spacing:.5px}
+.mv{font-size:11px}
+.mv.g{color:var(--buy)}.mv.r{color:var(--sell)}.mv.y{color:var(--wait)}.mv.w{color:var(--white)}.mv.i{color:var(--info)}.mv.m{color:var(--muted)}.mv.p{color:var(--purple)}
+
+/* PRIORITY SIGNAL ROW */
+.psig{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid rgba(15,26,46,.7)}
+.psig:last-child{border-bottom:none}
+.psig-icon{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.psig-icon.bull{background:rgba(0,255,157,.1);border:1px solid rgba(0,255,157,.2)}
+.psig-icon.bear{background:rgba(255,45,107,.1);border:1px solid rgba(255,45,107,.2)}
+.psig-icon.neut{background:rgba(45,64,96,.15);border:1px solid rgba(45,64,96,.3)}
+.psig-icon.na{background:rgba(45,64,96,.08);border:1px solid rgba(45,64,96,.15)}
+.psig-body{flex:1}
+.psig-title{font-size:11px;color:var(--text)}
+.psig-detail{font-size:10px;color:var(--muted);margin-top:2px}
+.psig-val{font-size:11px;text-align:right;flex-shrink:0}
+.psig-val.g{color:var(--buy)}.psig-val.r{color:var(--sell)}.psig-val.y{color:var(--wait)}.psig-val.m{color:var(--muted)}
+
+/* WHALE TX */
+.wtx{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(15,26,46,.7)}
+.wtx:last-child{border-bottom:none}
+.wtx-l{display:flex;align-items:center;gap:6px}
+.wdir{font-size:8px;padding:2px 5px;border-radius:2px;letter-spacing:1px;flex-shrink:0}
+.wdir.in{background:rgba(255,45,107,.08);color:var(--sell);border:1px solid rgba(255,45,107,.18)}
+.wdir.out{background:rgba(0,255,157,.08);color:var(--buy);border:1px solid rgba(0,255,157,.18)}
+.wname{font-size:10px;color:var(--muted)}
+.wtx-r{text-align:right}
+.wamt{font-size:11px;color:var(--white)}
+.wage{font-size:9px;color:var(--muted)}
+
+/* DEX STATS GRID */
+.dex-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}
+.dc{background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:10px 11px}
+.dc-l{font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
+.dc-v{font-size:14px}
+.dc-v.g{color:var(--buy)}.dc-v.r{color:var(--sell)}.dc-v.y{color:var(--wait)}.dc-v.i{color:var(--info)}.dc-v.w{color:var(--white)}
+.dc-s{font-size:9px;color:var(--muted);margin-top:2px}
+
+/* HOLDER BAR */
+.hbar{display:flex;height:6px;border-radius:3px;overflow:hidden;margin:10px 0 6px;gap:1px}
+.hb{height:100%;min-width:2px;transition:width .5s}
+.hlegend{display:flex;gap:10px;flex-wrap:wrap}
+.hli{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--muted)}
+.hld{width:6px;height:6px;border-radius:2px;flex-shrink:0}
+
+/* TRADINGVIEW CHART */
+.tv-wrap{border-radius:8px;overflow:hidden;margin-top:6px;border:1px solid var(--border)}
+
+/* SCORE VERDICT */
+.verdict{text-align:center;padding:22px 16px;border-radius:10px;border:1px solid;position:relative;overflow:hidden;margin-bottom:12px}
+.verdict::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,currentColor,transparent 70%);opacity:.035}
+.verdict.buy{border-color:rgba(0,255,157,.3);color:var(--buy)}
+.verdict.sell{border-color:rgba(255,45,107,.3);color:var(--sell)}
+.verdict.wait{border-color:rgba(255,184,0,.3);color:var(--wait)}
+.verdict.na{border-color:rgba(45,64,96,.3);color:var(--muted)}
+.v-lbl{font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:.55;margin-bottom:7px;font-family:var(--mono)}
+.v-main{font-family:var(--display);font-size:40px;font-weight:800;letter-spacing:3px;text-transform:uppercase}
+.v-score{font-size:12px;margin-top:7px;opacity:.6;font-family:var(--mono)}
+.v-signals{margin-top:10px;display:flex;flex-direction:column;gap:4px}
+.vsig{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text);text-align:left}
+.vsig-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* DATA CONFIDENCE */
+.conf-bar{margin-top:10px;padding:10px 12px;background:var(--card2);border:1px solid var(--border);border-radius:7px}
+.conf-lbl{font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.conf-track{height:4px;background:rgba(15,26,46,.8);border-radius:3px;overflow:hidden}
+.conf-fill{height:100%;border-radius:3px;transition:width .5s}
+
+/* DIVIDER */
+.div{font-size:8px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;text-align:center;padding:9px 0 5px;opacity:.4}
+
+/* FOOTER */
+.foot{text-align:center;padding:18px 0 0;font-size:9px;color:var(--muted);letter-spacing:2px;border-top:1px solid var(--border);margin-top:16px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-badge"><div class="hdr-dot"></div>ON-CHAIN SCANNER</div>
+  <h1>CHAIN<span>PULSE</span> <span style="font-size:14px;opacity:.4;font-weight:400;letter-spacing:0">v2</span></h1>
+  <div class="hdr-sub">Análisis on-chain priorizado · Comprar / Vender / Esperar</div>
+  <div class="apis">
+    <span class="api a">ETHERSCAN V2</span>
+    <span class="api b">SOLSCAN</span>
+    <span class="api c">DEFILLAMA</span>
+    <span class="api a">COINGECKO</span>
+    <span class="api p">DEXSCREENER</span>
+  </div>
+</div>
+
+<!-- STATUS -->
+<div class="sbar"><div class="sdot" id="sdot"></div><span id="stxt">Listo — ingresa un token</span></div>
+
+<!-- SEARCH -->
+<div class="search">
+  <div class="slbl">// token a analizar</div>
+  <div class="srow">
+    <input class="sinput" id="inp" placeholder="AAVE, LINK, SOL..." maxlength="10">
+    <button class="sbtn" id="abtn" onclick="go()">ESCANEAR</button>
+  </div>
+</div>
+
+<div class="errbox" id="ebox"></div>
+<div class="loader" id="loader"><div class="spin"></div><div class="ltxt" id="ltxt">CONECTANDO...</div></div>
+
+<div class="res" id="res">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-row">
+      <div>
+        <div class="hero-name" id="h-name">--</div>
+        <div class="hero-net" id="h-net">--</div>
+      </div>
+      <div>
+        <div class="hero-price" id="h-price">--</div>
+        <div class="hero-chg" id="h-chg">--</div>
+      </div>
+    </div>
+    <div class="hero-stats">
+      <div class="hs"><div class="hs-l">MCap</div><div class="hs-v" id="h-mc">--</div></div>
+      <div class="hs"><div class="hs-l">Vol 24H</div><div class="hs-v" id="h-vol">--</div></div>
+      <div class="hs"><div class="hs-l">7 días</div><div class="hs-v" id="h-7d">--</div></div>
+      <div class="hs"><div class="hs-l">Vol/MCap</div><div class="hs-v" id="h-vmc">--</div></div>
+    </div>
+  </div>
+
+  <!-- DATA QUALITY WARNING -->
+  <div class="dqw" id="dqw">
+    <div class="dqw-title">⚠ Datos incompletos — veredicto con menor confianza</div>
+    <div class="dqw-list" id="dqw-list"></div>
+  </div>
+
+  <!-- VEREDICTO -->
+  <div class="verdict wait" id="vbox">
+    <div class="v-lbl">// veredicto on-chain</div>
+    <div class="v-main" id="vtxt">--</div>
+    <div class="v-score" id="vscore">Calculando...</div>
+    <div class="v-signals" id="vsigs"></div>
+    <div class="conf-bar">
+      <div class="conf-lbl">CONFIANZA DEL ANÁLISIS</div>
+      <div class="conf-track"><div class="conf-fill" id="conf-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- 1. SEÑALES PRIORITARIAS -->
+  <div class="div">// señales prioritarias</div>
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="stag b">P1</span>
+      <span class="sec-title">Flujo de Ballenas</span>
+      <span class="badge na" id="w-badge">--</span>
+    </div>
+    <div class="sec-body">
+      <div class="psig">
+        <div class="psig-icon na" id="w-net-icon">→</div>
+        <div class="psig-body">
+          <div class="psig-title">Flujo neto exchange 24H</div>
+          <div class="psig-detail" id="w-net-detail">Calculando...</div>
+        </div>
+        <div class="psig-val m" id="w-net-val">--</div>
+      </div>
+      <div class="psig">
+        <div class="psig-icon na" id="w-tx-icon">🐋</div>
+        <div class="psig-body">
+          <div class="psig-title">TX grandes detectadas</div>
+          <div class="psig-detail" id="w-tx-detail">--</div>
+        </div>
+        <div class="psig-val m" id="w-tx-val">--</div>
+      </div>
+      <!-- TX list -->
+      <div id="wtx-list" style="margin-top:6px"></div>
+    </div>
+  </div>
+
+  <!-- 2. TVL -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="stag i">P2</span>
+      <span class="sec-title">TVL & Protocolo</span>
+      <span class="badge na" id="tvl-badge">--</span>
+    </div>
+    <div class="sec-body">
+      <div class="psig">
+        <div class="psig-icon na" id="tvl-icon">📊</div>
+        <div class="psig-body">
+          <div class="psig-title">TVL Total</div>
+          <div class="psig-detail" id="tvl-detail">DeFiLlama</div>
+        </div>
+        <div class="psig-val w" id="tvl-val">--</div>
+      </div>
+      <div class="mr"><span class="ml">CAMBIO 24H</span><span class="mv" id="tvl-24h">--</span></div>
+      <div class="mr"><span class="ml">CAMBIO 7D</span><span class="mv" id="tvl-7d">--</span></div>
+      <div class="mr"><span class="ml">SEÑAL TVL</span><span class="mv" id="tvl-sig">--</span></div>
+    </div>
+  </div>
+
+  <!-- 3. DEX VOLUME (DexScreener) -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="stag p">P3</span>
+      <span class="sec-title">Volumen DEX en Tiempo Real</span>
+      <span class="badge na" id="dex-badge">--</span>
+    </div>
+    <div class="sec-body">
+      <div class="dex-grid">
+        <div class="dc"><div class="dc-l">VOL 5M</div><div class="dc-v i" id="dex-v5m">--</div><div class="dc-s">DexScreener</div></div>
+        <div class="dc"><div class="dc-l">VOL 1H</div><div class="dc-v w" id="dex-v1h">--</div><div class="dc-s">DexScreener</div></div>
+        <div class="dc"><div class="dc-l">TXNS 1H</div><div class="dc-v a" id="dex-tx1h">--</div><div class="dc-s">compras + ventas</div></div>
+        <div class="dc"><div class="dc-l">LIQUIDEZ</div><div class="dc-v y" id="dex-liq">--</div><div class="dc-s">USD en pools</div></div>
+      </div>
+      <div class="mr"><span class="ml">PRECIO DEX (par principal)</span><span class="mv w" id="dex-price">--</span></div>
+      <div class="mr"><span class="ml">CAMBIO 1H DEX</span><span class="mv" id="dex-chg1h">--</span></div>
+      <div class="mr"><span class="ml">SEÑAL DEX</span><span class="mv" id="dex-sig">--</span></div>
+    </div>
+  </div>
+
+  <!-- 4. CONCENTRACIÓN HOLDERS -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="stag w">P4</span>
+      <span class="sec-title">Concentración Holders</span>
+      <span class="badge na" id="hc-badge">--</span>
+    </div>
+    <div class="sec-body">
+      <div class="mr"><span class="ml">TOP 10 HOLDERS</span><span class="mv" id="hc-top10">--</span></div>
+      <div class="mr"><span class="ml">% EN EXCHANGES</span><span class="mv" id="hc-exch">--</span></div>
+      <div class="mr"><span class="ml">RIESGO CONCENTRACIÓN</span><span class="mv" id="hc-risk">--</span></div>
+      <div id="hc-bar" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- 5. GRÁFICO TÉCNICO TradingView -->
+  <div class="div">// gráfico técnico</div>
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="stag i">TV</span>
+      <span class="sec-title">Gráfico TradingView</span>
+      <span class="badge info">LIVE</span>
+    </div>
+    <div class="sec-body" style="padding:8px">
+      <div class="tv-wrap" id="tv-chart"></div>
+    </div>
+  </div>
+
+  <!-- 6. RESUMEN COHERENCIA -->
+  <div class="div">// coherencia de señales</div>
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="stag b">∑</span>
+      <span class="sec-title">Resumen de Señales</span>
+    </div>
+    <div class="sec-body" id="summary-body">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+</div><!-- /res -->
+<div class="foot">CHAINPULSE v2 · JOEL · SOLO EDUCATIVO · NO ES ASESORÍA FINANCIERA</div>
+</div>
+
+<script>
+// ─── KEYS
+const EKEY='RM2PM5FEE476BYCYNINE75NIJTY9G19B7Q';
+const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjcmVhdGVkQXQiOjE3NzU2MTUyMTg5NDUsImVtYWlsIjoiYXVndXN0b2luZ3Jlc29zQGdtYWlsLmNvbSIsImFjdGlvbiI6InRva2VuLWFwaSIsImFwaVZlcnNpb24iOiJ2MiIsImlhdCI6MTc3NTYxNTIxOH0.Oo3uIeFmanmL_0c61V6ErQir1oe2aJrLnFGuibYmwxA';
+
+// ─── TOKEN CONFIG
+const CHAINS={
+  ETH:{chainId:1,tag:'ETH',type:'native',dexSymbol:'ETHUSDT',tvSymbol:'BINANCE:ETHUSD',dexChain:'ethereum'},
+  LINK:{chainId:1,tag:'ETH',type:'erc20',contract:'0x514910771af9ca656af840dff83e8264ecf986ca',dexSymbol:'LINKUSDT',tvSymbol:'BINANCE:LINKUSD',dexChain:'ethereum',defiId:'chainlink'},
+  AAVE:{chainId:1,tag:'ETH',type:'erc20',contract:'0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9',dexSymbol:'AAVEUSDT',tvSymbol:'BINANCE:AAVEUSD',dexChain:'ethereum',defiId:'aave'},
+  PEPE:{chainId:1,tag:'ETH',type:'erc20',contract:'0x6982508145454ce325ddbe47a25d4ec3d2311933',dexSymbol:'PEPEUSDT',tvSymbol:'BINANCE:PEPEUSD',dexChain:'ethereum'},
+  UNI:{chainId:1,tag:'ETH',type:'erc20',contract:'0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',dexSymbol:'UNIUSDT',tvSymbol:'BINANCE:UNIUSD',dexChain:'ethereum',defiId:'uniswap'},
+  RENDER:{chainId:1,tag:'ETH',type:'erc20',contract:'0x6de037ef9ad2725eb40118bb1702ebb27e4aeb24',dexSymbol:'RENDERUSDT',tvSymbol:'BINANCE:RENDERUSD',dexChain:'ethereum'},
+  LDO:{chainId:1,tag:'ETH',type:'erc20',contract:'0x5a98fcbea516cf06857215779fd812ca3bef1b32',dexSymbol:'LDOUSDT',tvSymbol:'BINANCE:LDOUSD',dexChain:'ethereum',defiId:'lido'},
+  MKR:{chainId:1,tag:'ETH',type:'erc20',contract:'0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2',dexSymbol:'MKRUSDT',tvSymbol:'BINANCE:MKRUSD',dexChain:'ethereum',defiId:'makerdao'},
+  CRV:{chainId:1,tag:'ETH',type:'erc20',contract:'0xd533a949740bb3306d119cc777fa900ba034cd52',dexSymbol:'CRVUSDT',tvSymbol:'BINANCE:CRVUSD',dexChain:'ethereum',defiId:'curve-finance'},
+  GRT:{chainId:1,tag:'ETH',type:'erc20',contract:'0xc944e90c64b2c07662a292be6244bdf05cda44a7',dexSymbol:'GRTUSDT',tvSymbol:'BINANCE:GRTUSD',dexChain:'ethereum'},
+  NEAR:{chainId:1,tag:'ETH',type:'erc20',contract:'0x85f17cf997934a597031b2e18a9ab6ebd4b9f6a4',dexSymbol:'NEARUSDT',tvSymbol:'BINANCE:NEARUSD',dexChain:'ethereum'},
+  ZRO:{chainId:1,tag:'ETH',type:'erc20',contract:'0x6985884c4392d348587b19cb9eaaf157f13271cd',dexSymbol:'ZROUSDT',tvSymbol:'BINANCE:ZROUSD',dexChain:'ethereum'},
+  INJ:{chainId:1,tag:'ETH',type:'erc20',contract:'0xe28b3b32b6c345a34ff64674606124dd5aceca30',dexSymbol:'INJUSDT',tvSymbol:'BINANCE:INJUSD',dexChain:'ethereum'},
+  ONDO:{chainId:1,tag:'ETH',type:'erc20',contract:'0xfAbA6f8e4a5E8Ab82F62fe7C39859FA577269BE3',dexSymbol:'ONDOUSDT',tvSymbol:'BINANCE:ONDOUSD',dexChain:'ethereum'},
+  ARB:{chainId:42161,tag:'ARB',type:'native',dexSymbol:'ARBUSDT',tvSymbol:'BINANCE:ARBUSD',dexChain:'arbitrum'},
+  BNB:{chainId:56,tag:'BNB',type:'native',dexSymbol:'BNBUSDT',tvSymbol:'BINANCE:BNBUSD',dexChain:'bsc'},
+  AVAX:{chainId:43114,tag:'AVAX',type:'native',dexSymbol:'AVAXUSDT',tvSymbol:'BINANCE:AVAXUSD',dexChain:'avalanche'},
+  SOL:{tag:'SOL',type:'solana',dexSymbol:'SOLUSDT',tvSymbol:'BINANCE:SOLUSD',dexChain:'solana'},
+  BONK:{tag:'SOL',type:'solana',dexSymbol:'BONKUSDT',tvSymbol:'BINANCE:BONKUSD',dexChain:'solana'},
+  WIF:{tag:'SOL',type:'solana',dexSymbol:'WIFUSDT',tvSymbol:'BINANCE:WIFUSD',dexChain:'solana'},
+  JUP:{tag:'SOL',type:'solana',dexSymbol:'JUPUSDT',tvSymbol:'BINANCE:JUPUSD',dexChain:'solana'},
+  DOGE:{tag:'DOGE',type:'other',dexSymbol:'DOGEUSDT',tvSymbol:'BINANCE:DOGEUSD',dexChain:''},
+};
+
+const EX_WALLETS={
+  '0x28c6c06298d514db089934071355e5743bf21d60':'Binance Hot',
+  '0xdfd5293d8e347dfe59e90efd55b2956a1343963d':'Binance Hot 2',
+  '0x21a31ee1afc51d94c2efccaa2092ad1028285549':'Binance Cold',
+  '0xbe0eb53f46cd790cd13851d5eff43d12404d33e8':'Binance Cold 2',
+  '0xf977814e90da44bfa03b6295a0616a897441acec':'Binance 8',
+  '0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be':'Binance 11',
+  '0xeb2629a2734e272bcc07bda959863f316f4bd4cf':'Coinbase 1',
+  '0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43':'Coinbase 2',
+  '0x71660c4005ba85c37ccec55d0c4493e66fe775d3':'Coinbase 3',
+  '0xe93381fb4c4f14bda253907b18fad305d799241a':'Bybit 1',
+  '0x1ab4973a48dc892cd9971ece8e01dcc7688f8f23':'Bybit 2',
+  '0xadb2b42f6bd96f5c65920b9ac88619dce4166f94':'OKX 1',
+  '0x98ec059dc3adfbdd63429454aeb0c990fba4a128':'OKX 2',
+  '0xf89d7b9c864f589bbf53a82105107622b35eaa40':'HTX 1',
+  '0x2910543af39aba0cd09dbb2d50200b3e800a63d2':'Kraken 1',
+  '0x0d0707963952f2fba59dd06f2b425ace40b492fe':'Gate.io 1',
+  '0x1657c5b5cb74bd10da6eb1dd854e6e1f9ed97c7f':'Bitget 1',
+  '0x2b5634c42055806a59e9107ed44d43c426e58258':'KuCoin 1',
+};
+
+const CG_IDS={
+  'ETH':'ethereum','SOL':'solana','BNB':'binancecoin','AVAX':'avalanche-2',
+  'DOGE':'dogecoin','XRP':'ripple','ADA':'cardano','LINK':'chainlink',
+  'NEAR':'near','UNI':'uniswap','PEPE':'pepe','ARB':'arbitrum',
+  'AAVE':'aave','MKR':'maker','CRV':'curve-dao-token','LDO':'lido-dao',
+  'GRT':'the-graph','RENDER':'render-token','BONK':'bonk','WIF':'dogwifcoin',
+  'JUP':'jupiter-exchange-solana','ONDO':'ondo-finance','ZRO':'layerzero',
+  'INJ':'injective-protocol','FET':'fetch-ai',
+};
+
+const DEFI_IDS={
+  'AAVE':'aave','UNI':'uniswap','CRV':'curve-finance','MKR':'makerdao',
+  'LDO':'lido','LINK':'chainlink','ETH':'lido','SOL':'marinade-finance',
+  'AVAX':'benqi','ARB':'uniswap-v3','BNB':'pancakeswap-amm',
+};
+
+// ─── STATE
+let D={
+  token:'',price:0,chg24:0,chg7:0,vol:0,mcap:0,vmcRatio:0,
+  whale:{inflow:0,outflow:0,netflow:0,txList:[],count:0,signal:'na'},
+  tvl:{total:0,chg24:0,chg7:0,chain:'',signal:'na'},
+  dex:{v5m:0,v1h:0,v6h:0,v24h:0,tx1h:0,liq:0,price:0,chg1h:0,chg6h:0,signal:'na'},
+  holders:{top10pct:0,exchPct:0,risk:'unknown'},
+  // data quality flags
+  dq:{whale:false,tvl:false,dex:false,holders:false},
+};
+
+// ─── UTILS
+const fmt=(n,d=2)=>{if(n==null||isNaN(n)||n===0)return'$0';const a=Math.abs(n);return(n<0?'-':'')+(a>=1e9?'$'+(a/1e9).toFixed(d)+'B':a>=1e6?'$'+(a/1e6).toFixed(d)+'M':a>=1e3?'$'+(a/1e3).toFixed(1)+'K':'$'+a.toFixed(2))};
+const fmtK=(n)=>{if(!n||isNaN(n))return'0';return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(0)+'K':n.toFixed(0)};
+const pct=(n,d=2)=>n==null?'--':(n>=0?'+':'')+n.toFixed(d)+'%';
+const g=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()});
+const el=id=>document.getElementById(id);
+const ss=(t,x)=>{el('sdot').className='sdot '+t;el('stxt').textContent=x};
+const fmtPrice=n=>{if(!n)return'--';return n>=1?'$'+n.toFixed(2):n>=0.0001?'$'+n.toFixed(6):'$'+n.toExponential(4)};
+
+// ─── MAIN
+async function go(){
+  const raw=el('inp').value.trim().toUpperCase().replace('USDT','').replace('USD','');
+  if(!raw)return;
+  D.token=raw;
+  D.dq={whale:false,tvl:false,dex:false,holders:false};
+  setLoad(true,'BUSCANDO TOKEN...');
+  errHide();resHide();
+
+  try{
+    setLoad(true,'CARGANDO DATOS DE MERCADO...');
+    const cgId=CG_IDS[raw]||raw.toLowerCase();
+    const [cgData,dexData]=await Promise.all([
+      g(`https://api.coingecko.com/api/v3/coins/${cgId}?localization=false&tickers=false&community_data=false&developer_data=false&sparkline=false`).catch(()=>null),
+      fetchDex(raw),
+    ]);
+
+    if(cgData?.market_data){
+      const md=cgData.market_data;
+      D.price=md.current_price?.usd||0;
+      D.chg24=md.price_change_percentage_24h||0;
+      D.chg7=md.price_change_percentage_7d||0;
+      D.vol=md.total_volume?.usd||0;
+      D.mcap=md.market_cap?.usd||0;
+      D.vmcRatio=D.mcap>0?D.vol/D.mcap*100:0;
+    }
+    D.dex=dexData;
+    if(dexData.v24h>0)D.dq.dex=true;
+
+    renderHero();
+    renderTVChart(raw);
+    setLoad(false);resShow();
+    ss('loading','Cargando datos on-chain...');
+
+    // On-chain parallel
+    const cfg=CHAINS[raw];
+    const [whaleD,tvlD,holderD]=await Promise.all([
+      fetchWhales(raw,cfg),
+      fetchTVL(raw),
+      fetchHolders(raw,cfg),
+    ]);
+    D.whale=whaleD;
+    D.tvl=tvlD;
+    D.holders=holderD;
+    if(whaleD.count>0||whaleD.signal!=='na')D.dq.whale=true;
+    if(tvlD.total>0)D.dq.tvl=true;
+    if(holderD.top10pct>0)D.dq.holders=true;
+
+    renderWhales();
+    renderTVL();
+    renderHolders();
+    renderVerdict();
+    renderSummary();
+    ss('ok','Análisis completo — '+new Date().toLocaleTimeString('es'));
+
+  }catch(e){
+    setLoad(false);
+    errShow('No se encontró "'+raw+'". Verifica el ticker.');
+    ss('err','Error al cargar datos');
+  }
+}
+
+// ─── HERO
+function renderHero(){
+  el('h-name').textContent=D.token+'/USDT';
+  const cfg=CHAINS[D.token];
+  const tagMap={'ETH':'Ethereum','SOL':'Solana','BNB':'BNB Chain','ARB':'Arbitrum','AVAX':'Avalanche','DOGE':'Dogecoin'};
+  el('h-net').textContent='Red: '+(cfg?tagMap[cfg.tag]||cfg.tag:'Desconocida');
+  el('h-price').textContent=fmtPrice(D.price);
+  const ce=el('h-chg');
+  ce.textContent=(D.chg24>=0?'▲ +':'▼ ')+D.chg24.toFixed(2)+'%';
+  ce.className='hero-chg '+(D.chg24>=0?'p':'n');
+  el('h-mc').textContent=fmt(D.mcap,2);
+  el('h-vol').textContent=fmt(D.vol,2);
+  const s7=el('h-7d');s7.textContent=(D.chg7>=0?'+':'')+D.chg7.toFixed(2)+'%';s7.className='hs-v '+(D.chg7>=0?'g':'r');
+  const vm=el('h-vmc');vm.textContent=D.vmcRatio.toFixed(2)+'%';vm.className='hs-v '+(D.vmcRatio>10?'g':D.vmcRatio>2?'y':'r');
+}
+
+// ─── TRADINGVIEW CHART
+function renderTVChart(token){
+  const cfg=CHAINS[token];
+  const sym=cfg?.tvSymbol||('BINANCE:'+token+'USD');
+  el('tv-chart').innerHTML=`
+    <div class="tradingview-widget-container" style="height:280px">
+      <div class="tradingview-widget-container__widget" style="height:100%"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+      {
+        "autosize": true,
+        "symbol": "${sym}",
+        "interval": "60",
+        "timezone": "America/New_York",
+        "theme": "dark",
+        "style": "1",
+        "locale": "es",
+        "backgroundColor": "rgba(8,13,22,1)",
+        "gridColor": "rgba(15,26,46,0.8)",
+        "hide_top_toolbar": false,
+        "hide_legend": false,
+        "save_image": false,
+        "studies": ["RSI@tv-basicstudies","MASimple@tv-basicstudies"],
+        "support_host": "https://www.tradingview.com"
+      }
+      <\/script>
+    </div>`;
+}
+
+// ─── FETCH DEX (DexScreener)
+async function fetchDex(token){
+  const cfg=CHAINS[token];
+  if(!cfg?.dexChain||!cfg.dexChain)return{v5m:0,v1h:0,v6h:0,v24h:0,tx1h:0,liq:0,price:0,chg1h:0,chg6h:0,signal:'na'};
+  try{
+    let url='';
+    if(cfg.contract){
+      url=`https://api.dexscreener.com/token-pairs/v1/${cfg.dexChain}/${cfg.contract}`;
+    }else{
+      // Search by symbol
+      url=`https://api.dexscreener.com/latest/dex/search/?q=${token}`;
+    }
+    const data=await g(url).catch(()=>null);
+    let pairs=[];
+    if(data?.pairs)pairs=data.pairs;
+    else if(Array.isArray(data))pairs=data;
+
+    if(!pairs.length)return{v5m:0,v1h:0,v6h:0,v24h:0,tx1h:0,liq:0,price:0,chg1h:0,chg6h:0,signal:'na'};
+
+    // Get the most liquid pair
+    const best=pairs.sort((a,b)=>(b.liquidity?.usd||0)-(a.liquidity?.usd||0))[0];
+    const v=best.volume||{};
+    const tx=best.txns?.h1||{};
+    const p=best.priceChange||{};
+    const v24=v.h24||0;
+    const signal=p.h1>3?'buy':p.h1<-3?'sell':v24>1000000?'active':'neutral';
+    return{
+      v5m:v.m5||0,v1h:v.h1||0,v6h:v.h6||0,v24h:v24,
+      tx1h:(tx.buys||0)+(tx.sells||0),
+      liq:best.liquidity?.usd||0,
+      price:parseFloat(best.priceUsd||0),
+      chg1h:p.h1||0,chg6h:p.h6||0,
+      signal,dexId:best.dexId||'',pairAddr:best.pairAddress||''
+    };
+  }catch(e){return{v5m:0,v1h:0,v6h:0,v24h:0,tx1h:0,liq:0,price:0,chg1h:0,chg6h:0,signal:'na'};}
+}
+
+// ─── RENDER DEX
+function renderDex(){
+  const d=D.dex;
+  const badge=el('dex-badge');
+  el('dex-v5m').textContent=d.v5m>0?fmt(d.v5m,1):'N/A';
+  el('dex-v1h').textContent=d.v1h>0?fmt(d.v1h,1):'N/A';
+  el('dex-tx1h').textContent=d.tx1h>0?fmtK(d.tx1h)+' txns':'N/A';
+  el('dex-liq').textContent=d.liq>0?fmt(d.liq,1):'N/A';
+  el('dex-price').textContent=d.price>0?fmtPrice(d.price):'--';
+  const c1=el('dex-chg1h');c1.textContent=pct(d.chg1h);c1.className='mv '+(d.chg1h>=0?'g':'r');
+  const ds=el('dex-sig');
+  if(d.signal==='buy'){ds.textContent='MOMENTUM ALCISTA en DEX';ds.className='mv g';badge.textContent='ACTIVO ↑';badge.className='badge buy';}
+  else if(d.signal==='sell'){ds.textContent='PRESIÓN BAJISTA en DEX';ds.className='mv r';badge.textContent='BAJISTA';badge.className='badge sell';}
+  else if(d.signal==='active'){ds.textContent='VOLUMEN ALTO — alta actividad';ds.className='mv y';badge.textContent='ACTIVO';badge.className='badge wait';}
+  else if(d.signal==='na'){ds.textContent='Sin datos de DEX para este token';ds.className='mv m';badge.textContent='N/A';badge.className='badge na';}
+  else{ds.textContent='Volumen normal — sin señal específica';ds.className='mv m';badge.textContent='NORMAL';badge.className='badge na';}
+}
+
+// ─── FETCH WHALES
+async function fetchWhales(token,cfg){
+  const empty={inflow:0,outflow:0,netflow:0,txList:[],count:0,signal:'na'};
+  if(!cfg||cfg.type==='other')return empty;
+  if(cfg.type==='solana')return fetchSolWhales();
+  if(!cfg.chainId)return empty;
+  try{
+    const threshold=Math.max(10000,D.vol*0.0003);
+    const url=cfg.contract
+      ?`https://api.etherscan.io/v2/api?chainid=${cfg.chainId}&module=account&action=tokentx&contractaddress=${cfg.contract}&page=1&offset=100&sort=desc&apikey=${EKEY}`
+      :`https://api.etherscan.io/v2/api?chainid=${cfg.chainId}&module=account&action=txlist&address=0x28c6c06298d514db089934071355e5743bf21d60&page=1&offset=100&sort=desc&apikey=${EKEY}`;
+    const data=await g(url);
+    if(!data||data.status!=='1'||!data.result)return empty;
+    let inflow=0,outflow=0,txList=[];
+    for(const tx of data.result.slice(0,60)){
+      let val=0;
+      if(cfg.contract){const dec=tx.tokenDecimal?parseInt(tx.tokenDecimal):18;val=parseFloat(tx.value)/Math.pow(10,dec)*D.price;}
+      else{val=parseFloat(tx.value)/1e18*D.price;}
+      if(val<threshold)continue;
+      const to=(tx.to||'').toLowerCase(),from=(tx.from||'').toLowerCase();
+      const toEx=EX_WALLETS[to],fromEx=EX_WALLETS[from];
+      if(!toEx&&!fromEx)continue;
+      let dir,exName;
+      if(toEx){dir='in';exName=toEx;inflow+=val;}else{dir='out';exName=fromEx;outflow+=val;}
+      txList.push({dir,val,exName,hash:tx.hash?tx.hash.slice(0,10)+'...':'--',age:tx.timeStamp?Math.floor((Date.now()/1000-parseInt(tx.timeStamp))/3600):0});
+      if(txList.length>=5)break;
+    }
+    const netflow=outflow-inflow;
+    const signal=inflow>outflow*1.5?'sell':outflow>inflow*1.5?'buy':txList.length>0?'mixed':'na';
+    return{inflow,outflow,netflow,txList,count:txList.length,signal};
+  }catch(e){return empty;}
+}
+
+async function fetchSolWhales(){
+  try{
+    const data=await fetch('https://pro-api.solscan.io/v2.0/transfer/token?page=1&page_size=20&sort_by=block_time&sort_order=desc&activity_type[]=ACTIVITY_SPL_TRANSFER',{headers:{token:SKEY}}).then(r=>r.json());
+    if(!data?.data)return{inflow:0,outflow:0,netflow:0,txList:[],count:0,signal:'na'};
+    const EX_SOL=['G2YxRa6wt1qePMwfJzdXZG62ej4qaTC7YURzuh2Lwd3t','5VCwKtCXgCJ6kit5FybXjvriW3xELsFDhYrPSqtJNmcD'];
+    const threshold=Math.max(10000,D.vol*0.0003);
+    let inflow=0,outflow=0,txList=[];
+    for(const tx of(data.data||[]).slice(0,20)){
+      const val=(tx.amount||0)*D.price;
+      if(val<threshold)continue;
+      if(EX_SOL.includes(tx.to_address)){inflow+=val;txList.push({dir:'in',val,exName:'Exchange SOL',hash:tx.trans_id?tx.trans_id.slice(0,10)+'...':'--',age:tx.block_time?Math.floor((Date.now()/1000-tx.block_time)/3600):0});}
+      else if(EX_SOL.includes(tx.from_address)){outflow+=val;txList.push({dir:'out',val,exName:'Exchange SOL',hash:tx.trans_id?tx.trans_id.slice(0,10)+'...':'--',age:tx.block_time?Math.floor((Date.now()/1000-tx.block_time)/3600):0});}
+      if(txList.length>=5)break;
+    }
+    const netflow=outflow-inflow;
+    const signal=inflow>outflow*1.5?'sell':outflow>inflow*1.5?'buy':txList.length>0?'mixed':'na';
+    return{inflow,outflow,netflow,txList,count:txList.length,signal};
+  }catch(e){return{inflow:0,outflow:0,netflow:0,txList:[],count:0,signal:'na'};}
+}
+
+// ─── RENDER WHALES
+function renderWhales(){
+  const w=D.whale;
+  const badge=el('w-badge');
+  // Net flow psig
+  const ni=el('w-net-icon'),nv=el('w-net-val'),nd=el('w-net-detail');
+  if(w.signal==='na'){
+    ni.textContent='?';ni.className='psig-icon na';
+    nv.textContent='Sin datos';nv.className='psig-val m';
+    nd.textContent='No hay TX grandes hacia/desde exchanges conocidos';
+    badge.textContent='N/A';badge.className='badge na';
+  }else if(w.signal==='buy'){
+    ni.textContent='↙';ni.className='psig-icon bull';
+    nv.textContent=fmt(w.outflow,1);nv.className='psig-val g';
+    nd.textContent='Ballenas retirando de exchanges — acumulación';
+    badge.textContent='ALCISTA';badge.className='badge buy';
+  }else if(w.signal==='sell'){
+    ni.textContent='↗';ni.className='psig-icon bear';
+    nv.textContent=fmt(w.inflow,1);nv.className='psig-val r';
+    nd.textContent='Ballenas enviando a exchanges — distribución';
+    badge.textContent='BAJISTA';badge.className='badge sell';
+  }else{
+    ni.textContent='↔';ni.className='psig-icon neut';
+    nv.textContent=fmt(Math.abs(w.netflow),1);nv.className='psig-val y';
+    nd.textContent='Flujos mixtos hacia/desde exchanges';
+    badge.textContent='MIXTO';badge.className='badge wait';
+  }
+  // TX count
+  const ti=el('w-tx-icon'),tv=el('w-tx-val'),td=el('w-tx-detail');
+  ti.textContent='🐋';ti.className='psig-icon '+(w.count>0?'neut':'na');
+  tv.textContent=w.count>0?w.count+' TX':'0 TX';tv.className='psig-val '+(w.count>0?'y':'m');
+  const threshold=Math.round(Math.max(10000,D.vol*0.0003)/1000);
+  td.textContent='Transacciones >$'+threshold+'K hacia/desde exchanges';
+  // TX list
+  const list=el('wtx-list');
+  if(w.txList.length>0){
+    list.innerHTML=`<div style="font-size:9px;color:var(--muted);letter-spacing:2px;padding:6px 0 3px">ÚLTIMAS TX GRANDES:</div>`+w.txList.map(tx=>`
+      <div class="wtx">
+        <div class="wtx-l">
+          <span class="wdir ${tx.dir}">${tx.dir==='in'?'→ EX':'← EX'}</span>
+          <span class="wname">${tx.exName} · ${tx.age}h ago</span>
+        </div>
+        <div class="wtx-r">
+          <div class="wamt">${fmt(tx.val)}</div>
+          <div class="wage">${tx.hash}</div>
+        </div>
+      </div>`).join('');
+  }else{
+    list.innerHTML='';
+  }
+}
+
+// ─── FETCH & RENDER TVL
+async function fetchTVL(token){
+  const id=DEFI_IDS[token]||(CHAINS[token]?.defiId)||null;
+  if(!id)return{total:0,chg24:0,chg7:0,chain:'',signal:'na'};
+  try{
+    const data=await g(`https://api.llama.fi/protocol/${id}`);
+    if(!data?.tvl?.length)return{total:0,chg24:0,chg7:0,chain:'',signal:'na'};
+    const last=data.tvl[data.tvl.length-1].totalLiquidityUSD||0;
+    const prev=data.tvl.length>1?data.tvl[data.tvl.length-2].totalLiquidityUSD:0;
+    const week=data.tvl.length>7?data.tvl[data.tvl.length-8].totalLiquidityUSD:0;
+    const chg24=prev>0?(last-prev)/prev*100:0;
+    const chg7=week>0?(last-week)/week*100:0;
+    const chain=data.chainTvls?Object.entries(data.chainTvls).sort((a,b)=>b[1]-a[1])[0]?.[0]||'--':'--';
+    const signal=chg7>5?'buy':chg7<-5?'sell':'neutral';
+    return{total:last,chg24,chg7,chain,signal};
+  }catch(e){return{total:0,chg24:0,chg7:0,chain:'',signal:'na'};}
+}
+
+function renderTVL(){
+  const t=D.tvl;
+  const badge=el('tvl-badge');
+  const ti=el('tvl-icon'),tv=el('tvl-val'),td=el('tvl-detail');
+  if(t.total===0){
+    ti.textContent='📊';ti.className='psig-icon na';
+    tv.textContent='N/A';
+    td.textContent='Token sin protocolo DeFi o sin datos DeFiLlama';
+    el('tvl-24h').textContent='--';el('tvl-7d').textContent='--';
+    el('tvl-sig').textContent='Sin TVL — token no DeFi o sin datos';
+    el('tvl-sig').className='mv m';
+    badge.textContent='N/A';badge.className='badge na';return;
+  }
+  ti.textContent=t.chg7>0?'📈':'📉';
+  ti.className='psig-icon '+(t.chg7>0?'bull':'bear');
+  tv.textContent=fmt(t.total,2);
+  td.textContent=t.chain?' — '+t.chain:'';
+  const t24=el('tvl-24h');t24.textContent=pct(t.chg24);t24.className='mv '+(t.chg24>=0?'g':'r');
+  const t7=el('tvl-7d');t7.textContent=pct(t.chg7);t7.className='mv '+(t.chg7>=0?'g':'r');
+  const ts=el('tvl-sig');
+  if(t.signal==='buy'){ts.textContent='TVL CRECIENDO — capital entrando al protocolo';ts.className='mv g';badge.textContent='ALCISTA';badge.className='badge buy';}
+  else if(t.signal==='sell'){ts.textContent='TVL CAYENDO — capital saliendo del protocolo';ts.className='mv r';badge.textContent='BAJISTA';badge.className='badge sell';}
+  else{ts.textContent='TVL ESTABLE — sin movimiento significativo 7D';ts.className='mv y';badge.textContent='NEUTRO';badge.className='badge wait';}
+}
+
+// ─── FETCH & RENDER HOLDERS
+async function fetchHolders(token,cfg){
+  if(!cfg?.chainId||!cfg?.contract)return{top10pct:0,exchPct:0,risk:'unknown'};
+  try{
+    const url=`https://api.etherscan.io/v2/api?chainid=${cfg.chainId}&module=token&action=tokenholderlist&contractaddress=${cfg.contract}&page=1&offset=20&apikey=${EKEY}`;
+    const data=await g(url);
+    if(!data||data.status!=='1'||!data.result?.length)return{top10pct:0,exchPct:0,risk:'unknown'};
+    const holders=data.result.slice(0,20);
+    const totalQty=holders.reduce((s,h)=>s+parseFloat(h.TokenHolderQuantity||0),0);
+    let top10pct=0,exchPct=0;
+    holders.slice(0,10).forEach(h=>{
+      const qty=parseFloat(h.TokenHolderQuantity||0);
+      const p=totalQty>0?qty/totalQty*100:0;
+      top10pct+=p;
+      if(EX_WALLETS[(h.TokenHolderAddress||'').toLowerCase()])exchPct+=p;
+    });
+    top10pct=Math.min(top10pct,98);
+    return{top10pct,exchPct,risk:top10pct>60?'alto':top10pct>40?'medio':'bajo'};
+  }catch(e){return{top10pct:0,exchPct:0,risk:'unknown'};}
+}
+
+function renderHolders(){
+  const h=D.holders;
+  const badge=el('hc-badge');
+  const t10=el('hc-top10');
+  if(h.top10pct>0){
+    t10.textContent=h.top10pct.toFixed(1)+'% del supply';
+    t10.className='mv '+(h.top10pct>60?'r':h.top10pct>40?'y':'g');
+  }else{t10.textContent='Sin datos (token nativo o sin contrato)';t10.className='mv m';}
+  const exc=el('hc-exch');
+  exc.textContent=h.exchPct>0?h.exchPct.toFixed(1)+'% controlado por exchanges':'Sin datos';
+  exc.className='mv '+(h.exchPct>30?'r':h.exchPct>10?'y':'g');
+  const risk=el('hc-risk');
+  const rt=h.risk==='alto'?'ALTO — riesgo de manipulación':h.risk==='medio'?'MEDIO — concentración moderada':h.risk==='bajo'?'BAJO — distribución saludable':'Sin datos suficientes';
+  risk.textContent=rt;risk.className='mv '+(h.risk==='alto'?'r':h.risk==='medio'?'y':h.risk==='bajo'?'g':'m');
+  if(h.risk==='alto'){badge.textContent='RIESGO ALTO';badge.className='badge sell';}
+  else if(h.risk==='medio'){badge.textContent='RIESGO MEDIO';badge.className='badge wait';}
+  else if(h.risk==='bajo'){badge.textContent='SALUDABLE';badge.className='badge buy';}
+  else{badge.textContent='N/A';badge.className='badge na';}
+  const barWrap=el('hc-bar');
+  if(h.top10pct>0){
+    const rest=100-h.top10pct;
+    barWrap.innerHTML=`
+      <div class="hbar">
+        <div class="hb" style="width:${h.exchPct}%;background:var(--sell)"></div>
+        <div class="hb" style="width:${Math.max(0,h.top10pct-h.exchPct)}%;background:var(--wait)"></div>
+        <div class="hb" style="width:${rest}%;background:rgba(0,255,157,.35)"></div>
+      </div>
+      <div class="hlegend">
+        <div class="hli"><div class="hld" style="background:var(--sell)"></div>${h.exchPct.toFixed(1)}% exchanges</div>
+        <div class="hli"><div class="hld" style="background:var(--wait)"></div>${Math.max(0,h.top10pct-h.exchPct).toFixed(1)}% top wallets</div>
+        <div class="hli"><div class="hld" style="background:rgba(0,255,157,.4)"></div>${rest.toFixed(1)}% resto</div>
+      </div>`;
+  }
+}
+
+// ─── VERDICT (lógica coherente y priorizada)
+function renderVerdict(){
+  const w=D.whale,t=D.tvl,h=D.holders,d=D.dex;
+  // Contadores separados por fuente de datos
+  let bullPts=0,bearPts=0,totalPts=0;
+  const sigs=[];
+  const missing=[];
+
+  // ── PRIORIDAD 1: BALLENAS (peso: 3) ── SOLO si hay datos reales
+  if(D.dq.whale){
+    totalPts+=3;
+    if(w.signal==='buy'){bullPts+=3;sigs.push({bull:true,txt:'Ballenas acumulando: '+fmt(w.outflow,1)+' salió de exchanges'});}
+    else if(w.signal==='sell'){bearPts+=3;sigs.push({bull:false,txt:'Ballenas distribuyendo: '+fmt(w.inflow,1)+' entró a exchanges'});}
+    else{bullPts+=1;bearPts+=1;totalPts+=1;sigs.push({bull:null,txt:'Flujos mixtos de ballenas'});}
+  }else{missing.push('Flujo de ballenas (no hay TX grandes detectadas)');}
+
+  // ── PRIORIDAD 2: TVL (peso: 2) — SOLO para tokens DeFi
+  if(D.dq.tvl){
+    totalPts+=2;
+    if(t.signal==='buy'){bullPts+=2;sigs.push({bull:true,txt:'TVL creciendo: '+pct(t.chg7)+' en 7D ('+fmt(t.total,1)+')'});}
+    else if(t.signal==='sell'){bearPts+=2;sigs.push({bull:false,txt:'TVL cayendo: '+pct(t.chg7)+' en 7D'});}
+    else{sigs.push({bull:null,txt:'TVL estable ('+pct(t.chg7,1)+' 7D)'});}
+  }else if(DEFI_IDS[D.token]){missing.push('TVL del protocolo');}
+  // Si no es token DeFi, el TVL N/A no cuenta como señal faltante importante
+
+  // ── PRIORIDAD 3: DEX VOLUME (peso: 2)
+  if(D.dq.dex){
+    totalPts+=2;
+    if(d.signal==='buy'){bullPts+=2;sigs.push({bull:true,txt:'Momentum alcista en DEX: +'+d.chg1h.toFixed(1)+'% 1H, vol '+fmt(d.v1h,1)});}
+    else if(d.signal==='sell'){bearPts+=2;sigs.push({bull:false,txt:'Presión bajista en DEX: '+d.chg1h.toFixed(1)+'% 1H'});}
+    else if(d.signal==='active'){bullPts+=1;sigs.push({bull:true,txt:'Alta actividad DEX: '+fmt(d.v24h,1)+' vol 24H'});}
+    else{sigs.push({bull:null,txt:'Volumen DEX normal'});}
+  }else{missing.push('Volumen DEX en tiempo real');}
+
+  // ── PRIORIDAD 4: CONCENTRACIÓN HOLDERS (peso: 1) — solo si hay datos
+  if(D.dq.holders){
+    totalPts+=1;
+    if(h.risk==='bajo'){bullPts+=1;sigs.push({bull:true,txt:'Distribución saludable: top10 = '+h.top10pct.toFixed(1)+'%'});}
+    else if(h.risk==='alto'){bearPts+=1;sigs.push({bull:false,txt:'Alta concentración: top10 = '+h.top10pct.toFixed(1)+'% (riesgo)'});}
+    else{sigs.push({bull:null,txt:'Concentración moderada: '+h.top10pct.toFixed(1)+'%'});}
+  }
+
+  // ── COHERENCIA: si señales principales se contradicen, bajar confianza
+  const contradiction=D.dq.whale&&D.dq.tvl&&w.signal==='sell'&&t.signal==='buy';
+
+  // ── CÁLCULO SCORE coherente
+  const dataScore=totalPts>0?bullPts/totalPts:0; // 0 a 1
+  const confidence=totalPts>0?Math.min(100,Math.round((totalPts/8)*100)):0;
+  const scoreDisplay=Math.round(dataScore*10*10)/10;
+
+  // ── VEREDICTO
+  const vbox=el('vbox'),vtxt=el('vtxt'),vscore=el('vscore');
+  let verdict,cls,confColor;
+  if(totalPts===0){
+    verdict='SIN DATOS';cls='na';confColor='var(--muted)';
+    vscore.textContent='No hay suficientes datos on-chain para emitir veredicto';
+  }else if(contradiction){
+    verdict='ESPERAR';cls='wait';confColor='var(--wait)';
+    vscore.textContent='Señales contradictorias — espera más claridad';
+  }else if(dataScore>=0.65){
+    verdict='COMPRAR';cls='buy';confColor='var(--buy)';
+    vscore.textContent='Score: '+scoreDisplay+'/10 · '+bullPts+' señales alcistas · '+bearPts+' bajistas';
+  }else if(dataScore<=0.35){
+    verdict='VENDER';cls='sell';confColor='var(--sell)';
+    vscore.textContent='Score: '+scoreDisplay+'/10 · '+bearPts+' señales bajistas · '+bullPts+' alcistas';
+  }else{
+    verdict='ESPERAR';cls='wait';confColor='var(--wait)';
+    vscore.textContent='Score: '+scoreDisplay+'/10 · Señales mixtas o insuficientes';
+  }
+  vbox.className='verdict '+cls;
+  vtxt.textContent=verdict;
+
+  // Confidence bar
+  const cf=el('conf-fill');
+  cf.style.width=confidence+'%';
+  cf.style.background=confColor;
+
+  // Signal list
+  el('vsigs').innerHTML=sigs.map(s=>`
+    <div class="vsig">
+      <div class="vsig-dot" style="background:${s.bull===true?'var(--buy)':s.bull===false?'var(--sell)':'var(--wait)'}"></div>
+      <span style="color:${s.bull===true?'var(--buy)':s.bull===false?'var(--sell)':'var(--muted)'}">${s.txt}</span>
+    </div>`).join('');
+
+  // Data quality warning
+  if(missing.length>0){
+    el('dqw').className='dqw on';
+    el('dqw-list').innerHTML=missing.map(m=>'• '+m).join('<br>');
+  }else{
+    el('dqw').className='dqw';
+  }
+
+  // Render DEX (after all data ready)
+  renderDex();
+}
+
+// ─── SUMMARY TABLE
+function renderSummary(){
+  const rows=[
+    {lbl:'Flujo ballenas',val:D.whale.signal,icons:{buy:'↙ Acumulando',sell:'↗ Distribuyendo',mixed:'↔ Mixto',na:'Sin datos'},ok:{buy:true,sell:false,mixed:null,na:null}},
+    {lbl:'TVL protocolo',val:D.tvl.signal,icons:{buy:'📈 Creciendo',sell:'📉 Cayendo',neutral:'➡ Estable',na:'N/A'},ok:{buy:true,sell:false,neutral:null,na:null}},
+    {lbl:'Momentum DEX',val:D.dex.signal,icons:{buy:'↑ Alcista',sell:'↓ Bajista',active:'◉ Activo',neutral:'— Normal',na:'Sin datos'},ok:{buy:true,sell:false,active:true,neutral:null,na:null}},
+    {lbl:'Concentración',val:D.holders.risk,icons:{bajo:'✓ Saludable',medio:'⚡ Moderada',alto:'⚠ Alta',unknown:'Sin datos'},ok:{bajo:true,medio:null,alto:false,unknown:null}},
+    {lbl:'Precio 7D',val:D.chg7>5?'bull':D.chg7<-5?'bear':'neutral',icons:{bull:'▲ +'+D.chg7.toFixed(1)+'%',bear:'▼ '+D.chg7.toFixed(1)+'%',neutral:'→ '+D.chg7.toFixed(1)+'%'},ok:{bull:true,bear:false,neutral:null}},
+    {lbl:'Vol/MCap',val:D.vmcRatio>5?'high':D.vmcRatio>1?'mid':'low',icons:{high:'◉ Alto ('+D.vmcRatio.toFixed(1)+'%)',mid:'○ Normal ('+D.vmcRatio.toFixed(1)+'%)',low:'▪ Bajo ('+D.vmcRatio.toFixed(1)+'%)'},ok:{high:true,mid:null,low:false}},
+  ];
+  el('summary-body').innerHTML=rows.map(r=>{
+    const icon=r.icons[r.val]||r.val;
+    const ok=r.ok[r.val];
+    const cls=ok===true?'g':ok===false?'r':ok===null?'m':'m';
+    const bgCls=ok===true?'bull':ok===false?'bear':'na';
+    return`<div class="psig">
+      <div class="psig-icon ${bgCls}">${ok===true?'✓':ok===false?'✗':'—'}</div>
+      <div class="psig-body"><div class="psig-title">${r.lbl}</div></div>
+      <div class="psig-val ${cls}">${icon}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── UI
+function setLoad(v,t){
+  el('loader').className=v?'loader on':'loader';
+  if(t)el('ltxt').textContent=t;
+  el('abtn').disabled=v;
+  if(v)ss('loading',t||'...');
+}
+function resShow(){el('res').className='res on'}
+function resHide(){el('res').className='res'}
+function errShow(m){const e=el('ebox');e.className='errbox on';e.textContent='⚠ '+m}
+function errHide(){el('ebox').className='errbox'}
+el('inp').addEventListener('keydown',e=>{if(e.key==='Enter')go()});
+</script>
+</body>
+</html>
